@@ -10,7 +10,7 @@ import UIKit
 class ConfigurationTableViewController: UITableViewController {
     var configs: [Configuration] = []
     var indexPath: IndexPath?
-    
+   
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -48,7 +48,7 @@ class ConfigurationTableViewController: UITableViewController {
             }
         }
     }
-    
+ 
     // MARK: - Table view data source
     
     override func numberOfSections(in tableView: UITableView) -> Int {

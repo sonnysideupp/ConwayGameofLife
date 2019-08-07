@@ -20,8 +20,10 @@ struct DummyGrid: GridDataSource {
     @IBInspectable var inset = CGFloat(2.0)
     @IBInspectable var lineWidth: CGFloat = 2.0
     @IBInspectable var lineColor: UIColor = .black
-    @IBInspectable var aliveColor: UIColor = .green
-    @IBInspectable var deadColor: UIColor = .black
+    @IBInspectable var livingColor: UIColor = .green
+    @IBInspectable var emptyColor: UIColor = .black
+    @IBInspectable var bornColor: UIColor = UIColor(red: 118/255, green: 241/255, blue: 72/255, alpha: 0.6)
+    @IBInspectable var diedColor: UIColor = .gray
     
     var dataSource: GridDataSource! = DummyGrid()
     
@@ -85,8 +87,10 @@ struct DummyGrid: GridDataSource {
             
             let path = UIBezierPath(ovalIn: cellRect)
             switch dataSource.cellStates[row][col] {
-            case .alive, .born: aliveColor.setFill()
-            case .died, .empty: deadColor.setFill()
+            case .alive: livingColor.setFill()
+            case .died: diedColor.setFill()
+            case .born: bornColor.setFill()
+            case .empty: emptyColor.setFill()
             }
             path.fill()
         }

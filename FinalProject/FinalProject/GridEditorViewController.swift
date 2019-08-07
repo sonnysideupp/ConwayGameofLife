@@ -12,6 +12,7 @@ typealias ConfigurationCallback = (Configuration) -> Void
 
 class GridEditorViewController: UIViewController {
 
+    @IBOutlet weak var text: UITextField!
     @IBOutlet weak var gridView: XView!
     var size: GridSize = (10,10)
     var config: Configuration!{
@@ -24,16 +25,17 @@ class GridEditorViewController: UIViewController {
     }
     var callback: ConfigurationCallback?
     var engine: Engine!
+    var bigengine: Engine!
     var c: Configuration?
     override func viewDidLoad() {
         super.viewDidLoad()
+        bigengine = Engine.sharedEngineInstance
         var grid = Grid(size)
+        text.text = config.title
         config.contents?.forEach({
             grid.cellStates[$0[0]][$0[1]] = .alive
             }
         )
-      
-
         engine = Engine(grid: grid)
         gridView.dataSource = engine
         let s = String(data: try! JSONEncoder().encode(config),encoding: .utf8)
@@ -43,13 +45,17 @@ class GridEditorViewController: UIViewController {
     }
     
     @IBAction func save(_ sender: UIButton){
-        Engine.sharedEngineInstance.grid = engine.grid
+        
+        Engine.sharedEngineInstance.grid = self.engine.grid
+        Engine.sharedEngineInstance.title = config.title
+        Engine.sharedEngineInstance.delegate?.engine(didUpdate: self.engine)
+        NotificationCenter.default.post(name: EngineNoticationName, object: nil)
     }
     
 
     @IBAction func publish(_ sender: UIButton) {
         c = Configuration(
-            title: config.title,
+            title: text.text,
             contents: engine.grid.allPositions.filter { engine.grid.cellStates[$0.row][$0.col].isAlive }.map { [$0.row, $0.col] }
         )
         callback?(c!)

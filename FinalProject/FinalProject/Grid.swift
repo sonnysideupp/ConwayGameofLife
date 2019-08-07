@@ -38,6 +38,31 @@ enum CellState {
         case .died, .empty: return false
         }
     }
+    
+    var alive:Bool{
+        switch self {
+        case .alive: return true
+        default: return false
+        }
+    }
+    var born:Bool{
+        switch self {
+        case .born: return true
+        default: return false
+        }
+    }
+    var died:Bool{
+        switch self {
+        case .died: return true
+        default: return false
+        }
+    }
+    var empty:Bool{
+        switch self {
+        case .empty: return true
+        default: return false
+        }
+    }
 }
 
 protocol GridDataSource {
@@ -47,10 +72,27 @@ protocol GridDataSource {
 }
 
 struct Grid: GridDataSource {
-    let size: GridSize
-    var cellStates: [[CellState]]
+    var size: GridSize
+    var totaldiedcount: Int
+    var totalborncount: Int
+    var totalemptycount: Int
+    var totalalivecount: Int
+    var cellStates: [[CellState]] {
+        didSet{
+            totaldiedcount = currentdied()
+            totalborncount = currentborn()
+            totalemptycount = currentempty()
+            totalalivecount = currentalive()
+        }
+        
+    }
+    
 
     init(_ size: GridSize = (10, 10), _ cellInitializer: (Int, Int) -> CellState = { _,_ in .empty } ) {
+        totaldiedcount = 0
+        totalborncount = 0
+        totalemptycount = size.rows * size.cols
+        totalalivecount = 0
         self.size = size
         cellStates = (0 ..< size.rows).map { row in (0 ..< size.cols).map { col in cellInitializer(row, col) } }
     }
@@ -59,6 +101,22 @@ struct Grid: GridDataSource {
         
     func living(_ positions: [Position]) -> [Position] {
         return positions.filter { cellStates[$0.row][$0.col].isAlive }
+    }
+    
+    func currentalive() -> Int{
+        return allPositions.filter { cellStates[$0.row][$0.col].alive }.count
+    }
+    
+    func currentborn() -> Int{
+        return allPositions.filter { cellStates[$0.row][$0.col].born }.count
+    }
+    
+    func currentempty() -> Int{
+        return allPositions.filter { cellStates[$0.row][$0.col].empty }.count
+    }
+    
+    func currentdied() -> Int{
+        return allPositions.filter { cellStates[$0.row][$0.col].died }.count
     }
 
     func nextState(of position: Position) -> CellState {
@@ -70,7 +128,8 @@ struct Grid: GridDataSource {
         }
     }
     
-    var next: Grid { return Grid(size) { nextState(of: ($0, $1)) } }
+    var next: Grid {
+        return Grid(size) { nextState(of: ($0, $1)) } }
 }
 
 extension Grid {
@@ -94,17 +153,21 @@ protocol EngineDelegate {
 }
 
 let EngineNoticationName = Notification.Name(rawValue: "EngineUpdate")
-
+let Statsrefresh = Notification.Name(rawValue: "Statsrefresh")
 class Engine: GridDataSource {
     static var sharedEngineInstance = Engine()
-    
+    var title: String?
     var grid: Grid{
         didSet{
             delegate?.engine(didUpdate: self)
         }
     }
     var timer: Timer?
-    var delegate: EngineDelegate?
+    var delegate: EngineDelegate? {
+        didSet {
+            print("in didSet")
+        }
+    }
     var timerFired: ((Engine) -> Void)?{
         didSet{
             delegate?.engine(didUpdate: self)
@@ -117,15 +180,27 @@ class Engine: GridDataSource {
                 timer = Timer.scheduledTimer(
                     withTimeInterval: refreshPeriod,
                     repeats: true) { (t) in
+                        let placebornbefore = self.grid.totalborncount
+                        let placediedbefore = self.grid.totaldiedcount
+                        let placealivebefore = self.grid.totalalivecount
+                        let placeemptybefore = self.grid.totalemptycount
                         self.grid = self.grid.next
-                        // self.timerFired?(self)
-                        //self.delegate?.engine(didUpdate: self)
+                        let placebornafter = self.grid.currentborn()
+                        let placediedafter = self.grid.currentdied()
+                        let placealiveafter = self.grid.currentalive()
+                        let placeemptyafter = self.grid.currentempty()
+                        self.grid.totalborncount = placebornbefore + placebornafter
+                        self.grid.totaldiedcount = placediedbefore + placediedafter
+                        self.grid.totalalivecount = placealivebefore + placealiveafter
+                        self.grid.totalemptycount  = placeemptybefore + placeemptyafter
+                        
                         let nc = NotificationCenter.default
                         let info = ["engine": self]
                         nc.post(name: EngineNoticationName, object: nil, userInfo:info)
+                        nc.post(name: Statsrefresh, object: nil)
                 }
             } else {
-                
+                timer?.invalidate()
                 timer = nil
             }
         }
